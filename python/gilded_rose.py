@@ -4,7 +4,10 @@ from enum import Enum
 
 class Constants(Enum):
     MAX_ITEM_QUALITY: int = 50
-    BACKSTAGE_PASS_THRESHOLD: int = 10
+    BACKSTAGE_PASS_THRESHOLD_1: int = 10
+    BACKSTAGE_PASS_THRESHOLD_2: int = 5
+    CONJURED_PREFIX: str = "Conjured"
+    DEFAULT_QUALITY_CHANGE: int = 1
 
 class ItemNames(Enum):
     SULFURAS: str = "Sulfuras, Hand of Ragnaros"
@@ -33,54 +36,56 @@ class GildedRose:
         if item.name in {ItemNames.SULFURAS.value}:
             return
 
+        quality_to_update = self._handle_quality(item)
+        item.quality += quality_to_update
+
+        self._adjust_bounds(item)
+
         item.sell_in -= 1
 
-        self._handle_quality(item)
+    @staticmethod
+    def _adjust_bounds(item: Item) -> None:
+        if item.quality > Constants.MAX_ITEM_QUALITY.value:
+            item.quality = Constants.MAX_ITEM_QUALITY.value
 
-        self._handle_item_expiration(item)
-
-    def _handle_quality(self, item: Item) -> None:
-        if self._item_increases_in_value(item):
-            if item.quality < Constants.MAX_ITEM_QUALITY.value:
-                item.quality += 1
-
-            self._handle_concert(item)
-
-            return
-
-        if item.quality > 0:
-            item.quality -= 1
-
-    def _handle_item_expiration(self, item: Item) -> None:
-        if not self._expired_item(item):
-            return
-
-        if item.name == ItemNames.AGED_BRIE.value:
-            if item.quality < Constants.MAX_ITEM_QUALITY.value:
-                item.quality += 1
-            return
-
-        if item.name == ItemNames.BACKSTAGE_PASS.value:
+        if item.quality < 0:
             item.quality = 0
-            return
 
-        can_decrease_quality_further = item.quality > 0
-        if can_decrease_quality_further:
-            item.quality -= 1
+    def _handle_quality(self, item: Item) -> int:
+        if item.name == ItemNames.BACKSTAGE_PASS.value:
+            return self._calculate_backstage_quality_update(item)
+
+        quality_to_update = self._calculate_quality_to_update(item)
+        if self._expired_item(item):
+            quality_to_update *= 2
+
+        return quality_to_update
+
+    def _calculate_backstage_quality_update(self, item: Item) -> int:
+        if item.sell_in > Constants.BACKSTAGE_PASS_THRESHOLD_1.value:
+            return Constants.DEFAULT_QUALITY_CHANGE.value
+
+        if item.sell_in > Constants.BACKSTAGE_PASS_THRESHOLD_2.value:
+            return 2 * Constants.DEFAULT_QUALITY_CHANGE.value
+
+        if item.sell_in > 0:
+            return 3 * Constants.DEFAULT_QUALITY_CHANGE.value
+
+        return -item.quality
+
+    def _calculate_quality_to_update(self, item: Item) -> int:
+        if item.name == ItemNames.AGED_BRIE.value:
+            return Constants.DEFAULT_QUALITY_CHANGE.value
+
+        if self._is_conjured_item(item):
+            return -2 * Constants.DEFAULT_QUALITY_CHANGE.value
+
+        return -Constants.DEFAULT_QUALITY_CHANGE.value
 
     @staticmethod
-    def _item_increases_in_value(item) -> bool:
-        return item.name in {ItemNames.AGED_BRIE.value, ItemNames.BACKSTAGE_PASS.value}
+    def _is_conjured_item(item) -> bool:
+        return item.name.startswith(Constants.CONJURED_PREFIX.value)
 
     @staticmethod
     def _expired_item(item) -> bool:
-        return item.sell_in < 0
-
-    @staticmethod
-    def _handle_concert(item) -> None:
-        is_backstage_pass = item.name == ItemNames.BACKSTAGE_PASS.value
-        is_under_pass_threshold = item.sell_in <= Constants.BACKSTAGE_PASS_THRESHOLD.value
-        can_update_quality = item.quality < Constants.MAX_ITEM_QUALITY.value
-
-        if is_backstage_pass and is_under_pass_threshold and can_update_quality:
-            item.quality += 1
+        return item.sell_in <= 0

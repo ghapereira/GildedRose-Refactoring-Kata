@@ -201,6 +201,29 @@ class GildedRoseTest(unittest.TestCase):
         self.assertEqual(items[0].quality, 0)
         self.assertEqual(items[0].sell_in, -5)
 
+    def conjured_items_are_correctly_identified(self):
+        self.assertTrue(GildedRose._is_conjured_item(Item("Conjured staff", 0, 0)))
+        self.assertTrue(GildedRose._is_conjured_item(Item("Conjured", 0, 0)))
+        self.assertFalse(GildedRose._is_conjured_item(Item("Cojnured staff", 0, 0)))
+        self.assertFalse(GildedRose._is_conjured_item(Item("Conj", 0, 0)))
+        self.assertFalse(GildedRose._is_conjured_item(Item("Foo", 0, 0)))
+
+    def test_conjured_items_have_quality_degrading_twice_normal_rate(self):
+        items = [Item("Conjured foo", 1, 10)]
+        gilded_rose = GildedRose(items)
+
+        gilded_rose.update_quality()
+        self.assertEqual(items[0].quality, 8)
+        self.assertEqual(items[0].sell_in, 0)
+
+        gilded_rose.update_quality()
+        self.assertEqual(items[0].quality, 4)
+        self.assertEqual(items[0].sell_in, -1)
+
+        gilded_rose.update_quality()
+        self.assertEqual(items[0].quality, 0)
+        self.assertEqual(items[0].sell_in, -2)
+
 
 if __name__ == '__main__':
     unittest.main()
