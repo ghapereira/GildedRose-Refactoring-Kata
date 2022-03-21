@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from enum import Enum
+from typing import List
 
 class Constants(Enum):
     MAX_ITEM_QUALITY: int = 50
@@ -8,6 +9,7 @@ class Constants(Enum):
     BACKSTAGE_PASS_THRESHOLD_2: int = 5
     CONJURED_PREFIX: str = "Conjured"
     DEFAULT_QUALITY_CHANGE: int = 1
+    DEFAULT_SELLIN_UPDATE: int = 1
 
 class ItemNames(Enum):
     SULFURAS: str = "Sulfuras, Hand of Ragnaros"
@@ -21,11 +23,11 @@ class Item:
         self.quality = quality
 
     def __repr__(self):
-            return "%s, %s, %s" % (self.name, self.sell_in, self.quality)
+        return "%s, %s, %s" % (self.name, self.sell_in, self.quality)
 
 class GildedRose:
 
-    def __init__(self, items):
+    def __init__(self, items: List[Item]) -> None:
         self.items = items
 
     def update_quality(self) -> None:
@@ -41,15 +43,14 @@ class GildedRose:
 
         self._adjust_bounds(item)
 
-        item.sell_in -= 1
+        item.sell_in -= Constants.DEFAULT_SELLIN_UPDATE.value
 
     @staticmethod
     def _adjust_bounds(item: Item) -> None:
         if item.quality > Constants.MAX_ITEM_QUALITY.value:
             item.quality = Constants.MAX_ITEM_QUALITY.value
 
-        if item.quality < 0:
-            item.quality = 0
+        item.quality = max(item.quality, 0)
 
     def _handle_quality(self, item: Item) -> int:
         if item.name == ItemNames.BACKSTAGE_PASS.value:
@@ -61,7 +62,8 @@ class GildedRose:
 
         return quality_to_update
 
-    def _calculate_backstage_quality_update(self, item: Item) -> int:
+    @staticmethod
+    def _calculate_backstage_quality_update(item: Item) -> int:
         if item.sell_in > Constants.BACKSTAGE_PASS_THRESHOLD_1.value:
             return Constants.DEFAULT_QUALITY_CHANGE.value
 
